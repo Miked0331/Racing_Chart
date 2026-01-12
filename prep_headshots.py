@@ -6,7 +6,7 @@ OUT_DIR = "assets/headshots_cropped"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 MARGIN = 20          # pixels padding around detected non-transparent area
-TARGET = 512         # final square size (higher = sharper)
+TARGET = 1024        # final square size (higher = sharper)
 
 def crop_to_alpha(img: Image.Image) -> Image.Image:
     img = img.convert("RGBA")
@@ -32,7 +32,7 @@ for fn in os.listdir(IN_DIR):
     if not fn.lower().endswith(".png"):
         continue
     p = os.path.join(IN_DIR, fn)
-    img = Image.open(p)
+    img = Image.open(p).convert("RGBA")
     img = crop_to_alpha(img)
     img = make_square(img)
     img = img.resize((TARGET, TARGET), Image.LANCZOS)

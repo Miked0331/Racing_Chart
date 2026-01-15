@@ -1,0 +1,57 @@
+﻿{
+  "project_name": "qb_alltime_passing_1950_current",
+  "paths": {
+    "data_csv": "nfl_qb_alltime_passing_1950_current.csv",
+    "team_logo_dir": "assets/team_logos/qb_alltime_passing_1950_current",
+    "headshot_dir": "assets/headshots/qb_alltime_passing_1950_current",
+    "output_dir": "output/qb_alltime_passing_1950_current"
+  },
+  "mapping": {
+    "time_col": "time",
+    "entity_col": "player",
+    "group_col": "team",
+    "value_col": "value"
+  },
+  "layout": {
+    "aspect": "16x9",
+    "top_n": 10
+  },
+  "titles": {
+    "title": "NFL All-Time Passing Yards Race (1950-Present)",
+    "subtitle": "Career passing yards by season"
+  },
+  "video": {
+    "fps": 60,
+    "target_duration_sec": 5
+  },
+  "animation": {
+    "intro_hold_frames": 60,
+    "hold_end_frames": 240,
+    "inbetween_frames": null
+  },
+  "output_basename": "qb_alltime_passing_1950_current_16x9",
+  "save_video": true,
+  "save_still": false,
+  "dpi": 200,
+  "pixel_scale": 2.0,
+  "metric_label": "Yards",
+  "name_template": "{player}  |  {team}",
+  "theme": "dark_nfl",
+  "font_path": "Inter-VariableFont_opsz,wght.ttf",
+  "assets": {
+    "headshot_dir": "assets/headshots_cropped/qb_alltime_passing_1950_current",
+    "use_cropped_headshots": false,
+    "headshot_target_px": 1024,
+    "remove_black_bg": true,
+    "black_bg_threshold": 12,
+    "remove_white_bg": false,
+    "white_bg_threshold": 245,
+    "logo_outline_px": 0,
+    "logo_outline_color": [255, 255, 255, 255],
+    "logo_outline_alpha": 140,
+    "logo_use_resize": false,
+    "logo_composite_on_bg": true,
+    "oversample_logo": 2,
+    "oversample_head": 1
+  }
+}

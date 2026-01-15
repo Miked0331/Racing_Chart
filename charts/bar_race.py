@@ -237,6 +237,7 @@ def render_bar_race(
         return frames[idx]["week"]
 
     fig, ax = plt.subplots(figsize=config.figsize, dpi=config.dpi)
+    fig.subplots_adjust(bottom=0.16)
     fig.patch.set_facecolor(theme.bg)
 
     def update(idx):
@@ -264,7 +265,10 @@ def render_bar_race(
         s = series.sort_values(ascending=True).tail(config.top_n)
         names = list(s.index)
         vals = s.values
-        y = np.arange(len(names)) * layout.row_spacing
+        def y_for_rank(rank_idx: int) -> float:
+            return rank_idx * layout.row_spacing
+
+        y = np.array([y_for_rank(i) for i in range(len(names))])
 
         progress = w_to / final_week
         xmax = global_xmax * (layout.xmax_progress_min + layout.xmax_progress_max * progress)
@@ -280,13 +284,19 @@ def render_bar_race(
         ax.set_xlim(x0, x1)
         ax.set_ylim(-0.85, (len(names) - 1) * layout.row_spacing + layout.top_pad)
 
-        xticks = np.arange(0, int(x1 // 500 + 1) * 500 + 1, 500)
+        major_step = 10000
+        max_tick = int(x1 // major_step + 1) * major_step
+        xticks = np.arange(0, max_tick + 1, major_step)
         ax.set_xticks(xticks)
-        ax.set_xticklabels([f"{int(v):,}" if v else "0" for v in xticks], color=theme.sub, fontsize=layout.axis_fs)
+        ax.set_xticklabels(
+            ["0" if v == 0 else f"{int(v / 1000)}k" for v in xticks],
+            color=theme.sub,
+            fontsize=layout.axis_fs + 2,
+        )
 
         ax.xaxis.grid(True, color=theme.grid, alpha=0.35, linewidth=1)
         ax.yaxis.grid(False)
-        ax.tick_params(axis="x", labelsize=layout.axis_fs, colors=theme.sub)
+        ax.tick_params(axis="x", labelsize=layout.axis_fs + 2, colors=theme.sub, pad=-12)
         ax.tick_params(axis="y", colors=theme.sub)
 
         for spine in ax.spines.values():
@@ -315,7 +325,7 @@ def render_bar_race(
         ax.text(
             layout.badge_pos[0],
             layout.badge_pos[1],
-            label.replace("Week", "WEEK"),
+            f"YEAR {frame_week}",
             transform=ax.transAxes if layout.use_axes_text else None,
             va=layout.badge_va,
             ha=layout.badge_ha,
@@ -436,8 +446,12 @@ def render_bar_race(
                 ab.set_zorder(2)
                 ax.add_artist(ab)
 
+            name_pad = 0.01 * xmax
+            max_name_x = (layout.value_x - 0.03) * xmax
+            name_x = min(val + name_pad, max_name_x)
+
             ax.text(
-                layout.name_x * xmax, y_pos,
+                name_x, y_pos,
                 config.name_template.format(player=player, team=team_raw or team_logo),
                 va="center", ha="left",
                 color=theme.fg,
@@ -459,6 +473,8 @@ def render_bar_race(
             assets.ensure_headshot(player, headshot_map)
 
             cached_h = assets.get_headshot(player, head_px)
+            if cached_h is None:
+                cached_h = assets.get_team_logo(team_logo, head_px)
             if cached_h is not None:
                 arr, zoom = cached_h
                 ax.add_artist(AnnotationBbox(
@@ -483,7 +499,7 @@ def render_bar_race(
 
         ax.set_yticks(y)
         ax.set_yticklabels([""] * len(names))
-        ax.set_xlabel(config.metric_label, color=theme.sub, fontsize=layout.axis_fs, labelpad=10)
+        ax.set_xlabel(config.metric_label, color=theme.sub, fontsize=layout.axis_fs + 2, labelpad=-6)
 
     def save_still_frame():
         if not config.still_path:

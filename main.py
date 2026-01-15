@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import os
 import sys
@@ -41,6 +41,102 @@ def resolve_path(root: str, path: Optional[str]) -> Optional[str]:
     if os.path.isabs(path):
         return path
     return os.path.normpath(os.path.join(root, path))
+
+
+def normalize_layout_mode(aspect: Optional[str]) -> Optional[str]:
+    if not aspect:
+        return None
+    mode = str(aspect).lower()
+    if mode in {"16x9", "horizontal", "horizontal_16x9"}:
+        return "horizontal_16x9"
+    if mode in {"9x16", "vertical", "vertical_9x16", "portrait"}:
+        return "vertical_9x16"
+    return aspect
+
+
+def normalize_config(cfg: dict) -> dict:
+    norm = dict(cfg)
+
+    titles = cfg.get("titles") or {}
+    if titles:
+        norm["title"] = titles.get("title", norm.get("title"))
+        if "subtitle" in titles:
+            norm["final_subtitle"] = titles.get("subtitle", "")
+
+    layout = cfg.get("layout") or {}
+    if layout:
+        if "layout_mode" not in norm:
+            layout_mode = normalize_layout_mode(layout.get("aspect"))
+            if layout_mode:
+                norm["layout_mode"] = layout_mode
+        if "top_n" in layout and "top_n" not in norm:
+            norm["top_n"] = layout.get("top_n")
+
+    mapping = cfg.get("mapping") or {}
+    if mapping and "columns" not in norm:
+        columns = {
+            "time": mapping.get("time_col", "time"),
+            "entity": mapping.get("entity_col", "entity"),
+            "value": mapping.get("value_col", "value"),
+        }
+        group_col = mapping.get("group_col")
+        if group_col:
+            columns["group"] = group_col
+        weekly_col = mapping.get("weekly_value_col")
+        if weekly_col:
+            columns["weekly_value"] = weekly_col
+        headshot_col = mapping.get("headshot_url_col")
+        if headshot_col:
+            columns["headshot_url"] = headshot_col
+        norm["columns"] = columns
+
+    animation = cfg.get("animation") or {}
+    if animation:
+        if "intro_hold_frames" in animation and "intro_hold_frames" not in norm:
+            norm["intro_hold_frames"] = animation.get("intro_hold_frames")
+        if "hold_end_frames" in animation and "hold_end_frames" not in norm:
+            norm["hold_end_frames"] = animation.get("hold_end_frames")
+        if "inbetween_frames" in animation and "inbetween" not in norm:
+            norm["inbetween"] = animation.get("inbetween_frames")
+
+    video = cfg.get("video") or {}
+    if video:
+        if "fps" in video and "fps" not in norm:
+            norm["fps"] = video.get("fps")
+        if "target_duration_sec" in video and "target_duration_sec" not in norm:
+            norm["target_duration_sec"] = video.get("target_duration_sec")
+        if "video_preset" in video and "video_preset" not in norm:
+            norm["video_preset"] = video.get("video_preset")
+
+    return norm
+
+
+def apply_target_duration(cfg: dict, data: pd.DataFrame) -> dict:
+    target = cfg.get("target_duration_sec")
+    if not target:
+        return cfg
+
+    if cfg.get("inbetween") not in (None, 0, ""):
+        return cfg
+
+    time_col = cfg.get("columns", {}).get("time", "time")
+    if time_col not in data.columns:
+        return cfg
+
+    num_periods = int(data[time_col].dropna().nunique())
+    if num_periods <= 1:
+        return cfg
+
+    fps = int(cfg.get("fps", 60))
+    intro = int(cfg.get("intro_hold_frames", 60))
+    hold_end = int(cfg.get("hold_end_frames", 300))
+    total_frames = int(round(float(target) * fps))
+    transition_frames = max(1, total_frames - intro - hold_end)
+    inbetween = max(1, int(round(transition_frames / (num_periods - 1))))
+
+    updated = dict(cfg)
+    updated["inbetween"] = inbetween
+    return updated
 
 
 def build_paths(cfg: dict, repo_root: str) -> Paths:
@@ -139,10 +235,12 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    cfg = normalize_config(cfg)
     repo_root = os.path.dirname(os.path.abspath(__file__))
     paths = build_paths(cfg, repo_root)
 
     data = pd.read_csv(paths.data_csv)
+    cfg = apply_target_duration(cfg, data)
 
     theme = get_theme(cfg.get("theme", "dark_nfl"))
     chart_config = build_chart_config(cfg, repo_root)
